@@ -1,0 +1,14 @@
+server:
+  port: 8090
+
+elasticsearch:
+  hosts: http://localhost:9200
+
+spring:
+  gson:
+    date-format: YYYY-MM-dd HH:mm:ss
+    field-naming-policy: lower_case_with_underscores
+    serialize-nulls: false
+  http:
+    converters:
+      preferred-json-mapper: gson

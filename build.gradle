@@ -1,0 +1,41 @@
+buildscript {
+    ext {
+        springBootVersion = '2.0.3.RELEASE'
+    }
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+group = 'com.nevercaution'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+
+dependencies {
+    compile('org.springframework.boot:spring-boot-starter')
+    compile('org.springframework.boot:spring-boot-starter-webflux')
+    compileOnly("org.springframework.boot:spring-boot-configuration-processor")
+    compile('org.elasticsearch.client:elasticsearch-rest-high-level-client:6.3.0')
+    compile('org.apache.logging.log4j:log4j-core:2.9.1')
+    compile('org.elasticsearch.client:elasticsearch-rest-client:6.3.0')
+    compile('org.elasticsearch:elasticsearch:6.3.0')
+
+    compile('com.google.code.gson:gson:2.8.2')
+//    compile 'org.elasticsearch.client:transport:6.3.0'
+    compile('org.projectlombok:lombok')
+
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+
+}
