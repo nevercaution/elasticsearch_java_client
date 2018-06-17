@@ -33,7 +33,7 @@ public class SearchController {
         });
     }
 
-    @GetMapping("/index/{index}/{type}")
+    @RequestMapping(value = "/index/{index}/{type}", method = {RequestMethod.POST})
     public Mono<Void> index(@PathVariable("index") String index,
                             @PathVariable("type") String type,
                             @RequestParam(value = "user_name") String userName,
