@@ -4,7 +4,10 @@ import com.nevercaution.elasticsearch.model.User;
 import com.nevercaution.elasticsearch.service.ElasticsearchService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -19,19 +22,51 @@ public class SearchController {
     private ElasticsearchService elasticsearchService;
 
     @GetMapping("/match_all/{index}")
-    public Mono<List<User>> matchAll(@PathVariable("index") String index) {
+    public Flux<User> matchAll(@PathVariable("index") String index) {
 
         return elasticsearchService.matchAll(index).onErrorResume((Throwable error) -> {
             log.error("err", error);
-            List<User> userList = new ArrayList<>();
             User user = new User();
             user.setPostDate(new Date());
             user.setUser("default User");
             user.setMessage("default message");
-            userList.add(user);
-            return Mono.just(userList);
+            return Flux.just(user);
         });
     }
+
+    @GetMapping("/sync/match_all/{index}")
+    public Mono<List<User>> matchAllSync(@PathVariable("index") String index) {
+        return elasticsearchService.matchAllSync(index);
+    }
+
+    @GetMapping("get/{index}/{type}/{id}")
+    public Mono<User> getAsync(@PathVariable("index") String index,
+                               @PathVariable("type") String type,
+                               @PathVariable("id") String id) {
+
+        return elasticsearchService.getUser(index, type, id)
+                .onErrorResume(error -> {
+                    User defaultUser = new User();
+                    defaultUser.setUser("default");
+                    defaultUser.setPostDate(new Date());
+                    defaultUser.setMessage("default message");
+                    return Mono.just(defaultUser);
+                })
+                .defaultIfEmpty(new User());
+    }
+
+    @GetMapping("get2/{index}/{type}/{id}")
+    public Mono<ResponseEntity<User>> getAsync2(@PathVariable("index") String index,
+                                               @PathVariable("type") String type,
+                                               @PathVariable("id") String id) {
+
+        return elasticsearchService.getUser(index, type, id)
+                .map(ResponseEntity::ok)
+                .onErrorResume(error -> Mono.just(ResponseEntity.badRequest().build()))
+                .defaultIfEmpty(ResponseEntity.status(HttpStatus.OK).body(new User()));
+    }
+
+
 
     @RequestMapping(value = "/index/{index}/{type}", method = {RequestMethod.POST})
     public Mono<Void> index(@PathVariable("index") String index,

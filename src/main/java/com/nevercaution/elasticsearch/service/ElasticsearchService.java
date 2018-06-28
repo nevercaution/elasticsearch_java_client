@@ -5,9 +5,10 @@ import com.nevercaution.elasticsearch.model.User;
 import com.nevercaution.elasticsearch.util.GsonUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.main.MainResponse;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RestHighLevelClient;
@@ -16,10 +17,10 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.MonoSink;
 
-import java.io.IOError;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -65,7 +66,7 @@ public class ElasticsearchService {
         });
     }
 
-    public Mono<List<User>> matchAll(String index) {
+    public Flux<User> matchAll(String index) {
         final Gson gson = GsonUtil.gson();
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
@@ -74,21 +75,64 @@ public class ElasticsearchService {
         SearchRequest searchRequest = new SearchRequest(index);
         searchRequest.source(searchSourceBuilder);
 
-        return Mono.create((MonoSink<List<User>> sink) -> {
+        return Flux.create((FluxSink<User> sink) -> {
             restHighLevelClient.searchAsync(searchRequest, new ActionListener<SearchResponse>() {
                 @Override
                 public void onResponse(SearchResponse searchResponse) {
-                    List<User> resultList = new ArrayList<>();
                     searchResponse.getHits().forEach(item -> {
                         User user = gson.fromJson(item.getSourceAsString(), User.class);
-                        resultList.add(user);
+                        sink.next(user);
                     });
-                    sink.success(resultList);
+                    sink.complete();
                 }
 
                 @Override
                 public void onFailure(Exception e) {
                     log.error("matchAll error ", e);
+                    sink.error(e);
+                }
+            });
+        });
+    }
+
+    public Mono<List<User>> matchAllSync(String index) {
+        final Gson gson = GsonUtil.gson();
+
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchAllQuery());
+
+        SearchRequest searchRequest = new SearchRequest(index);
+        searchRequest.source(searchSourceBuilder);
+
+        List<User> resultList = new ArrayList<>();
+        try {
+            SearchResponse searchResponse = restHighLevelClient.search(searchRequest);
+
+            searchResponse.getHits().forEach(item -> {
+                User user = gson.fromJson(item.getSourceAsString(), User.class);
+                resultList.add(user);
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return Mono.just(resultList);
+    }
+
+    public Mono<User> getUser(String index, String type, String id) {
+        final Gson gson = GsonUtil.gson();
+        GetRequest getRequest = new GetRequest(index, type, id);
+        return Mono.create(sink -> {
+            restHighLevelClient.getAsync(getRequest, new ActionListener<GetResponse>() {
+                @Override
+                public void onResponse(GetResponse documentFields) {
+                    User user = gson.fromJson(documentFields.getSourceAsString(), User.class);
+                    sink.success(user);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    e.printStackTrace();
                     sink.error(e);
                 }
             });
